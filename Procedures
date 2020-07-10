@@ -1,0 +1,59 @@
+ include defines.s	
+			AREA MyCode,CODE, READONLY		
+	
+port_init;подкючение генератору к порту C
+;			EXPORT port_init ;иногда надо отключить, чтобы не было ошибки multidefine
+				
+			push 	{r1,r0}
+			ldr 	r1, =RCC_CFGR
+			ldr 	r0, =0x5000000;выбираем генератор частоты HSI, MCO = 0101
+			str 	r0, [r1];грузим по адресу [r1] значение r0
+			
+			mov 	r0, #0x10;включаем тактирование порта C 0x10=0b10000
+			ldr 	r1, =RCC_APB2ENR
+			str 	r0, [r1]
+			pop 	{r1,r0}
+			bx 		lr
+			
+led_init;инициализирует работу порта C
+			push	{r0,r1}
+			
+			push	{lr}
+			bl 		port_init
+			pop		{lr}	
+			
+ 			ldr 	r1, =GPIOC_CRH;записываем адрес GPIOC_CRH в r1
+			ldr 	r0,[r1];записываем содержимое GPIO_CRH в r0			
+			and 	r0,r0,#0xff0fffff;очищаем биты с 23:20
+			orr 	r0,r0,#0x200000;выставляем бит 21 в 1 - биты 21:20 режим работы push-pull 2mHz
+			str 	r0,[r1]
+			pop 	{r0,r1}
+			
+			bx 		lr
+led_flash;функция мигает светодиодом
+			push 	{r0,r1}
+			ldr 	r1,=GPIOC_ODR;грузим адрес в r1
+			ldr 	r0,[r1];грузим содержимое ячейки адреса r1 в r0
+			eor		r0, #0x2000;инвертируем 13 пин
+			str		r0,[r1];грузим обратно r0 в ячейку с адресом r1			
+			pop 	{r0,r1}
+			bx 		lr
+wait;функция активного ожидания
+			push	{r0}
+			ldr 	r0, =0xffff0
+_wait_loop
+			subs	r0,r0,#1
+			bne		_wait_loop
+			
+			pop		{r0}
+			bx 		lr
+bit_band			
+			mov 	r6, #0x1			
+			ldr 	r0, =SRAM_BAND
+			str 	r6, [r0,#16]
+			
+			bx 		lr
+			
+			ALIGN
+				
+			END
